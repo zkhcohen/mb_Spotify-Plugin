@@ -1,0 +1,4 @@
+CHANGE LOG:
+
+Beta 2.0: Improved performance. Removed 500 album restriction. Added automatic prompt to re-authenticate if computer resumes from sleep.
+Beta 2.0.2: Fixed error log spam.
