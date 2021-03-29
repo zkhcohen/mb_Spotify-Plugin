@@ -1,12 +1,9 @@
 ﻿using SpotifyAPI.Web;
 using SpotifyAPI.Web.Auth;
-using SpotifyAPI.Web.Enums;
-using SpotifyAPI.Web.Models;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace MusicBeePlugin
 {
@@ -14,51 +11,66 @@ namespace MusicBeePlugin
     public partial class Plugin
     {
 
-        private static SpotifyWebAPI _spotify;
+        private static SpotifyClient _spotify;
         private static int _auth, _num, _trackMissing = 0;
         private static bool _trackLIB, _albumLIB, _artistLIB, _runOnce = false;
         private static string _title, _album, _artist, _trackID, _albumID, _artistID, _imageURL;
 
 
-
         static async void SpotifyWebAuth(bool autoRefresh)
         {
-            ImplicitGrantAuth auth =
-                new ImplicitGrantAuth("777824a07eeb4312972ff5fcec54c565", "http://localhost:4002", "http://localhost:4002", Scope.UserLibraryModify | Scope.UserFollowModify | Scope.UserFollowRead | Scope.UserLibraryRead);
-            auth.AuthReceived += async (sender, payload) =>
+            var (verifier, challenge) = PKCEUtil.GenerateCodes(120);
+
+            var loginRequest = new LoginRequest(
+                new Uri("http://localhost:5000/callback"), "9076681768d94feda885a7b5eced926d", LoginRequest.ResponseType.Code)
             {
-
-                auth.Stop(); // `sender` is also the auth instance
-                _spotify = new SpotifyWebAPI() { TokenType = payload.TokenType, AccessToken = payload.AccessToken };
-
-                
+                CodeChallengeMethod = "S256",
+                CodeChallenge = challenge,
+                Scope = new[] { Scopes.UserLibraryModify, Scopes.UserFollowModify, Scopes.UserFollowRead, Scopes.UserLibraryRead }
             };
-            auth.Start(); // Starts an internal HTTP Server
+            var uri = loginRequest.ToUri();
 
-            auth.OpenBrowser(autoRefresh);
+            var server = new EmbedIOAuthServer(new Uri("http://localhost:5000/callback"), 5000);
+
+            server.PkceReceived += async (sender, response) =>
+            {
+                await server.Stop();
+
+                var initialResponse = await new OAuthClient().RequestToken(
+                  new PKCETokenRequest("9076681768d94feda885a7b5eced926d", response.Code, server.BaseUri, verifier)
+                );
+
+                _spotify = new SpotifyClient(initialResponse.AccessToken);
+
+
+                //var tokenResponse = await new OAuthClient(config).RequestToken(new AuthorizationCodeTokenRequest(
+                //  _clientId, _secretId, response.Code, server.BaseUri
+                //));
+
+                //var spotify = new SpotifyClient(config.WithToken(tokenResponse.AccessToken));
+            };
+            await server.Start();
+
+            try
+            {
+                BrowserUtil.Open(uri);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Unable to open URL, manually open: {0}", uri);
+            }
 
             _auth = 1;
             _runOnce = true;
         }
 
 
-
-        public FullTrack TrackSearch()
+        public async Task<FullTrack> TrackSearch()
         {
-            
-            
-            SearchItem track = _spotify.SearchItems(_searchTerm, SearchType.Track, 10);
 
-            if (track.HasError())
+            try
             {
-
-                _trackMissing = 1;
-                Console.WriteLine("Error Status: " + track.Error.Status);
-                Console.WriteLine("Error Msg: " + track.Error.Message);
-
-            }
-            else if (track.Tracks.Total >= 1)
-            {
+                var track = await _spotify.Search.Item(new SearchRequest(SearchRequest.Types.Track, _searchTerm));
                 _title = Truncate(track.Tracks.Items[_num].Name, largeBold);
                 _artist = Truncate(string.Join(", ", from item in track.Tracks.Items[_num].Artists select item.Name), smallRegular);
                 _album = Truncate(track.Tracks.Items[_num].Album.Name, smallRegular);
@@ -66,91 +78,230 @@ namespace MusicBeePlugin
                 _albumID = track.Tracks.Items[_num].Album.Id;
                 _artistID = track.Tracks.Items[_num].Artists[0].Id;
                 _imageURL = track.Tracks.Items[_num].Album.Images[0].Url;
-                
+                return null;
             }
-            else
+            catch (APIUnauthorizedException e)
             {
-
-                _trackMissing = 1;
-
+                // handle unauthorized error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+                return null;
             }
-            
-            return null;
-        }
-        
+            catch (APIException e)
+            {
+                // handle common error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+                return null;
+            }
+            catch (System.ArgumentOutOfRangeException e)
+            {
+                Console.WriteLine("Song not found!");
+                return null;
+            }
 
+        }
 
         public void SaveTrack()
         {
-
-            ErrorResponse response = _spotify.SaveTrack(_trackID);
-            if (!response.HasError())
-                MessageBox.Show("Track Saved.");
-            else
-                MessageBox.Show(response.Error.Message);
+            try
+            {
+                var track = new LibrarySaveTracksRequest(new List<string> { _trackID });
+                _spotify.Library.SaveTracks(track);
+                Console.WriteLine("Track Saved.");
+            }
+            catch (APIUnauthorizedException e)
+            {
+                // handle unauthorized error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (APIException e)
+            {
+                // handle common error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (System.ArgumentOutOfRangeException e)
+            {
+                Console.WriteLine("Song not found!");
+            }
 
         }
 
         public void SaveAlbum()
         {
-
-            ErrorResponse response = _spotify.SaveAlbum(_albumID);
-            if (!response.HasError())
-                MessageBox.Show("Album Saved.");
-            else
-                MessageBox.Show(response.Error.Message);
-
+            try
+            {
+                var album = new LibrarySaveAlbumsRequest(new List<string> { _albumID });
+                _spotify.Library.SaveAlbums(album);
+                Console.WriteLine("Album Saved.");
+            }
+            catch (APIUnauthorizedException e)
+            {
+                // handle unauthorized error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (APIException e)
+            {
+                // handle common error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (System.ArgumentOutOfRangeException e)
+            {
+                Console.WriteLine("Song not found!");
+            }
+            
         }
 
         public void FollowArtist()
         {
-            ErrorResponse response = _spotify.Follow(FollowType.Artist, _artistID);
-            if (!response.HasError())
-                MessageBox.Show("Artist Followed.");
-            else
-                MessageBox.Show(response.Error.Message);
-
+            try
+            {
+                var artist = new FollowRequest(FollowRequest.Type.Artist, new List<string> { _artistID });
+                _spotify.Follow.Follow(artist);
+                Console.WriteLine("Artist Followed.");
+            }
+            catch (APIUnauthorizedException e)
+            {
+                // handle unauthorized error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (APIException e)
+            {
+                // handle common error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (System.ArgumentOutOfRangeException e)
+            {
+                Console.WriteLine("Song not found!");
+            }
+            
         }
 
 
 
         public void RemoveTrack()
         {
-
-            ErrorResponse response = _spotify.RemoveSavedTracks(new List<string> { _trackID });
-            if (!response.HasError())
-                MessageBox.Show("Track Unsaved.");
-            else
-                MessageBox.Show(response.Error.Message);
-
+            try
+            {
+                var track = new LibraryRemoveTracksRequest(new List<string> { _trackID });
+                _spotify.Library.RemoveTracks(track);
+                Console.WriteLine("Track Unsaved.");
+            }
+            catch (APIUnauthorizedException e)
+            {
+                // handle unauthorized error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (APIException e)
+            {
+                // handle common error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (System.ArgumentOutOfRangeException e)
+            {
+                Console.WriteLine("Song not found!");
+            }
+            
         }
 
         public void RemoveAlbum()
         {
-            ErrorResponse response = _spotify.RemoveSavedAlbums(new List<string> { _albumID});
-            if (!response.HasError())
-                MessageBox.Show("Album Unsaved.");
-            else
-                MessageBox.Show(response.Error.Message);
-
+            try
+            {
+                var album = new LibraryRemoveAlbumsRequest(new List<string> { _albumID });
+                _spotify.Library.RemoveAlbums(album);
+                Console.WriteLine("Album Unsaved.");
+            }
+            catch (APIUnauthorizedException e)
+            {
+                // handle unauthorized error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (APIException e)
+            {
+                // handle common error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (System.ArgumentOutOfRangeException e)
+            {
+                Console.WriteLine("Song not found!");
+            }
+            
         }
 
         public void UnfollowArtist()
         {
-            ErrorResponse response = _spotify.Unfollow(FollowType.Artist, _artistID);
-            if (!response.HasError())
-                MessageBox.Show("Artist Unfollowed.");
-            else
-                MessageBox.Show(response.Error.Message);
-
+            try
+            {
+                var artist = new UnfollowRequest(UnfollowRequest.Type.Artist, new List<string> { _artistID });
+                _spotify.Follow.Unfollow(artist);
+                Console.WriteLine("Artist Unfollowed.");
+            }
+            catch (APIUnauthorizedException e)
+            {
+                // handle unauthorized error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (APIException e)
+            {
+                // handle common error
+                // e.Response contains HTTP response
+                // e.Message contains Spotify error message
+                Console.WriteLine("Error Status: " + e.Response);
+                Console.WriteLine("Error Msg: " + e.Message);
+            }
+            catch (System.ArgumentOutOfRangeException e)
+            {
+                Console.WriteLine("Song not found!");
+            }
+            
         }
 
 
 
         public Boolean CheckTrack(string id)
         {
-            ListResponse<bool> tracksSaved = _spotify.CheckSavedTracks(new List<String> { id });
-            if (tracksSaved.List[0])
+            var tracks = new LibraryCheckTracksRequest(new List<String> { id });
+
+            List<bool> tracksSaved = _spotify.Library.CheckTracks(tracks).Result;
+            if (tracksSaved.ElementAt(0))
             {
                 _trackLIB = true;
                 return true;
@@ -168,34 +319,53 @@ namespace MusicBeePlugin
             //ListResponse<bool> albumsSaved = _spotify.CheckSavedAlbums(new List<String> { id });
             //if (albumsSaved.List[0])
 
-            
-            foreach (string line in File.ReadLines(_savedAlbumsPath))
+
+            var albums = new LibraryCheckAlbumsRequest(new List<String> { id });
+
+            List<bool> albumsSaved = _spotify.Library.CheckAlbums(albums).Result;
+            if (albumsSaved.ElementAt(0))
             {
-                if (line.Contains(_albumID))
-                {
-                    _albumLIB = true;
-                    return true;
-                }
-                else
-                {
-                    _albumLIB = false;
-                }
+                _albumLIB = true;
+                return true;
             }
-            
-
-            if (_albumLIB)
-            { return true; }
             else
-            { return false; }
-        
+            {
+                _albumLIB = false;
+                return false;
+            }
 
 
-    }
+
+            //foreach (string line in File.ReadLines(_savedAlbumsPath))
+            //{
+            //    if (line.Contains(_albumID))
+            //    {
+            //        _albumLIB = true;
+            //        return true;
+            //    }
+            //    else
+            //    {
+            //        _albumLIB = false;
+            //    }
+            //}
+
+
+            //if (_albumLIB)
+            //{ return true; }
+            //else
+            //{ return false; }
+
+
+
+        }
 
         public Boolean CheckArtist(string id)
         {
-            ListResponse<Boolean> response = _spotify.IsFollowing(FollowType.Artist, id);
-            if (response.List[0] == true)
+
+            var artist = new FollowCheckCurrentUserRequest(FollowCheckCurrentUserRequest.Type.Artist, new List<string> { id });
+
+            List<bool> artistFollowed = _spotify.Follow.CheckCurrentUser(artist).Result;
+            if (artistFollowed.ElementAt(0))
             {
                 _artistLIB = true;
                 return true;
@@ -208,36 +378,36 @@ namespace MusicBeePlugin
         }
 
         // Workaround for Spotify API "Check-Users-Saved-Albums" Endpoint bug.
-        public void GenerateAlbumList()
-        {
+        //public void GenerateAlbumList()
+        //{
 
-            int offset = 0;
+        //    int offset = 0;
 
-            using (System.IO.StreamWriter file = new System.IO.StreamWriter(_savedAlbumsPath))
-            {
-                
+        //    using (System.IO.StreamWriter file = new System.IO.StreamWriter(_savedAlbumsPath))
+        //    {
 
-                while (offset != -1)
-                {
-                    
-                    Paging<SavedAlbum> savedAlbums = _spotify.GetSavedAlbums(50, offset);
-                    savedAlbums.Items.ForEach(album => file.WriteLine(album.Album.Id));
 
-                    if (savedAlbums.Next == null)
-                    {
-                        offset += -1;
-                        break;
-                    }
-                    else
-                    {
-                        offset += 50;
-                    }
+        //        while (offset != -1)
+        //        {
 
-                }
-                file.Close();
-            }
+        //            Paging<SavedAlbum> savedAlbums = _spotify.Library GetSavedAlbums(50, offset);
+        //            savedAlbums.Items.ForEach(album => file.WriteLine(album.Album.Id));
 
-        }
+        //            if (savedAlbums.Next == null)
+        //            {
+        //                offset += -1;
+        //                break;
+        //            }
+        //            else
+        //            {
+        //                offset += 50;
+        //            }
+
+        //        }
+        //        file.Close();
+        //    }
+
+        //}
 
 
     }

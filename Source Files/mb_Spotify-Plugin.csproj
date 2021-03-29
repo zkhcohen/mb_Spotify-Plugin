@@ -32,13 +32,11 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="SpotifyAPI.Web, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>SpotifyAPI.Web\bin\Debug\net46\SpotifyAPI.Web.dll</HintPath>
+    <Reference Include="SpotifyAPI.Web">
+      <HintPath>SpotifyAPI.Web.Auth\bin\Debug\netstandard2.0\SpotifyAPI.Web.dll</HintPath>
     </Reference>
-    <Reference Include="SpotifyAPI.Web.Auth, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>SpotifyAPI.Web.Auth\bin\Debug\net46\SpotifyAPI.Web.Auth.dll</HintPath>
+    <Reference Include="SpotifyAPI.Web.Auth">
+      <HintPath>SpotifyAPI.Web.Auth\bin\Debug\netstandard2.0\SpotifyAPI.Web.Auth.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -59,6 +57,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y "C:\Users\Zachary\Desktop\Core File\Other\Installers and Important Stuff\MusicBee Plugin Development\DEVELOPMENT\mb_Spotify-Plugin\Source Files\bin\Debug\mb_Spotify-Plugin.dll" "C:\Program Files (x86)\MusicBee\Plugins\mb_Spotify-Plugin.dll"</PostBuildEvent>
+    <PostBuildEvent>copy /Y "C:\Users\zacha\Desktop\Local Files\MusicBee Plugin Development\DEVELOPMENT\mb_Spotify-Plugin\Source Files\bin\Debug\mb_Spotify-Plugin.dll" "C:\Users\zacha\Desktop\Local Files\MusicBee\Plugins\mb_Spotify-Plugin.dll"</PostBuildEvent>
   </PropertyGroup>
 </Project>

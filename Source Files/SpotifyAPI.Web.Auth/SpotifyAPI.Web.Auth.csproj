@@ -1,25 +1,47 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net5.0;netstandard2.1;netstandard2.0</TargetFrameworks>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <PackageId>SpotifyAPI.Web.Auth</PackageId>
+    <Title>SpotifyAPI.Web.Auth</Title>
+    <Authors>Jonas Dellinger</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/JohnnyCrazy/SpotifyAPI-NET/</PackageProjectUrl>
+    <PackageRequireLicenseAcceptance>False</PackageRequireLicenseAcceptance>
+    <Description>
+      An embedded Web Server, based on EmbeddedIO, for Spotify Web API Authorization flows
+
+      For more infos, visit https://github.com/JohnnyCrazy/SpotifyAPI-NET
+    </Description>
+    <PackageTags>
+      spotify api music .net c# spotify-client
+    </PackageTags>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <NoWarn>1591</NoWarn>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>bin\Debug\netstandard2.0\SpotifyAPI.Web.Auth.xml</DocumentationFile>
-    <NoWarn>1701;1702;1705;1591</NoWarn>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile>bin\Release\netstandard2.0\SpotifyAPI.Web.Auth.xml</DocumentationFile>
-    <NoWarn>1701;1702;1705;1591</NoWarn>
+  <PropertyGroup Condition="'$(APPVEYOR)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="EmbedIO" Version="2.2.7" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    <PackageReference Include="EmbedIO" Version="3.4.3">
+      <PrivateAssets>None</PrivateAssets>
+    </PackageReference>
+    <ProjectReference Include="..\SpotifyAPI.Web\SpotifyAPI.Web.csproj">
+      <SpecificVersion>False</SpecificVersion>
+      <PrivateAssets>None</PrivateAssets>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SpotifyAPI.Web\SpotifyAPI.Web.csproj" />
+    <Compile Include="..\SpotifyAPI.Web\Util\Ensure.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,23 +51,5 @@
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net46' ">
-    <Reference Include="System.Net" />
-    <Reference Include="System.Net.Http" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="System.Management.Automation">
-      <HintPath>..\..\..\..\..\..\..\..\..\..\..\Windows\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation\v4.0_3.0.0.0__31bf3856ad364e35\System.Management.Automation.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Windows.Forms">
-      <HintPath>..\..\..\..\..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.6.2\System.Windows.Forms.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /Y &quot;C:\Users\Zachary\Desktop\Core File\Other\Installers and Important Stuff\MusicBee Plugin Development\DEVELOPMENT\mb_Spotify-Plugin\Source Files\bin\Debug\SpotifyAPI.Web.Auth.dll&quot; &quot;C:\Program Files (x86)\MusicBee\Plugins\SpotifyAPI.Web.Auth.dll&quot;" />
-  </Target>
 
 </Project>

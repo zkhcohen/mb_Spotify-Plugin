@@ -119,35 +119,35 @@ namespace MusicBeePlugin
                 e.Graphics.DrawImage(image, new Point(10, 80));
                 webClient.Dispose();
 
-                
-               if (CheckTrack(_trackID))
-               {
-                   TextRenderer.DrawText(e.Graphics, "Track Saved in Library", smallBold, new Point(80, 85), text1);
-               }
-               else
-               {
-                   TextRenderer.DrawText(e.Graphics, "Track Not in Library", smallRegular, new Point(80, 85), text1);
-               }
 
-               if (CheckAlbum(_albumID))
-               {
-                   TextRenderer.DrawText(e.Graphics, "Album Saved in Library", smallBold, new Point(80, 105), text1);
-               }
-               else
-               {
-                   TextRenderer.DrawText(e.Graphics, "Album Not in Library", smallRegular, new Point(80, 105), text1);
-               }
+                if (CheckTrack(_trackID))
+                {
+                    TextRenderer.DrawText(e.Graphics, "Track Saved in Library", smallBold, new Point(80, 85), text1);
+                }
+                else
+                {
+                    TextRenderer.DrawText(e.Graphics, "Track Not in Library", smallRegular, new Point(80, 85), text1);
+                }
 
-               if (CheckArtist(_artistID))
-               {
-                   TextRenderer.DrawText(e.Graphics, "Artist Already Followed", smallBold, new Point(80, 125), text1);
-               }
-               else
-               {
-                   TextRenderer.DrawText(e.Graphics, "Artist Not Followed", smallRegular, new Point(80, 125), text1);
-               }
+                if (CheckAlbum(_albumID))
+                {
+                    TextRenderer.DrawText(e.Graphics, "Album Saved in Library", smallBold, new Point(80, 105), text1);
+                }
+                else
+                {
+                    TextRenderer.DrawText(e.Graphics, "Album Not in Library", smallRegular, new Point(80, 105), text1);
+                }
 
-                
+                if (CheckArtist(_artistID))
+                {
+                    TextRenderer.DrawText(e.Graphics, "Artist Already Followed", smallBold, new Point(80, 125), text1);
+                }
+                else
+                {
+                    TextRenderer.DrawText(e.Graphics, "Artist Not Followed", smallRegular, new Point(80, 125), text1);
+                }
+
+
             }
             else if (_auth == 1 && _trackMissing == 1)
             {
@@ -237,26 +237,24 @@ namespace MusicBeePlugin
                         panel.Invalidate();
                         //panel.Paint += DrawPanel;
                     }
-                    
+
                 }
                 else if (point.X > 80 && point.X < this.panel.Width && point.Y < 120 && point.Y > 110)
                 {
-                    
+
                     if (_albumLIB)
                     {
                         RemoveAlbum();
-                        GenerateAlbumList();
                         panel.Invalidate();
                         //panel.Paint += DrawPanel;
                     }
                     else
                     {
                         SaveAlbum();
-                        GenerateAlbumList();
                         panel.Invalidate();
                         //panel.Paint += DrawPanel;
                     }
-                    
+
                 }
                 else if (point.X > 80 && point.X < this.panel.Width && point.Y < 100 && point.Y > 90)
                 {
@@ -273,9 +271,9 @@ namespace MusicBeePlugin
                         panel.Invalidate();
                         //panel.Paint += DrawPanel;
                     }
-                    
+
                 }
-                
+
 
             }
             
@@ -283,12 +281,11 @@ namespace MusicBeePlugin
         }
 
 
-        public void ReceiveNotification(string sourceFileUrl, NotificationType type)
+        public async void ReceiveNotification(string sourceFileUrl, NotificationType type)
         {
             
             switch (type)
             {
-                // Window stacking doesn't work with custom panel plugins.
 
                 //case NotificationType.PluginStartup:
 
@@ -301,17 +298,17 @@ namespace MusicBeePlugin
                 case NotificationType.TrackChanged:
 
                     
-                    if(_runOnce == true)
-                    {
-                        authTimer = new System.Threading.Timer(
-                        new TimerCallback(TickTimer),
-                        null,
-                        3600000,
-                        3600000);
+                    //if(_runOnce == true)
+                    //{
+                    //    authTimer = new System.Threading.Timer(
+                    //    new TimerCallback(TickTimer),
+                    //    null,
+                    //    3600000,
+                    //    3600000);
 
-                        GenerateAlbumList();
-                        _runOnce = false;
-                    }
+                    //    GenerateAlbumList();
+                    //    _runOnce = false;
+                    //}
                     
 
                     _trackMissing = 0;
@@ -322,7 +319,7 @@ namespace MusicBeePlugin
                     if (_auth == 1)
                     {
                         mbApiInterface.MB_RefreshPanels();
-                        TrackSearch();
+                        await TrackSearch();
                     }
                     
                 
