@@ -13,16 +13,17 @@ namespace MusicBeePlugin
 
         private static SpotifyClient _spotify;
         private static int _auth, _num, _trackMissing = 0;
-        private static bool _trackLIB, _albumLIB, _artistLIB, _runOnce = false;
+        private static bool _trackLIB, _albumLIB, _artistLIB = false;
         private static string _title, _album, _artist, _trackID, _albumID, _artistID, _imageURL;
+        private static string _clientID = "9076681768d94feda885a7b5eced926d";
 
 
-        static async void SpotifyWebAuth(bool autoRefresh)
+        static async void SpotifyWebAuth()
         {
             var (verifier, challenge) = PKCEUtil.GenerateCodes(120);
 
             var loginRequest = new LoginRequest(
-                new Uri("http://localhost:5000/callback"), "9076681768d94feda885a7b5eced926d", LoginRequest.ResponseType.Code)
+                new Uri("http://localhost:5000/callback"), _clientID, LoginRequest.ResponseType.Code)
             {
                 CodeChallengeMethod = "S256",
                 CodeChallenge = challenge,
@@ -37,17 +38,14 @@ namespace MusicBeePlugin
                 await server.Stop();
 
                 var initialResponse = await new OAuthClient().RequestToken(
-                  new PKCETokenRequest("9076681768d94feda885a7b5eced926d", response.Code, server.BaseUri, verifier)
+                  new PKCETokenRequest(_clientID, response.Code, server.BaseUri, verifier)
                 );
 
-                _spotify = new SpotifyClient(initialResponse.AccessToken);
+                var authenticator = new PKCEAuthenticator(_clientID, initialResponse);
 
-
-                //var tokenResponse = await new OAuthClient(config).RequestToken(new AuthorizationCodeTokenRequest(
-                //  _clientId, _secretId, response.Code, server.BaseUri
-                //));
-
-                //var spotify = new SpotifyClient(config.WithToken(tokenResponse.AccessToken));
+                var config = SpotifyClientConfig.CreateDefault()
+                  .WithAuthenticator(authenticator);
+                _spotify = new SpotifyClient(config);
             };
             await server.Start();
 
@@ -61,9 +59,7 @@ namespace MusicBeePlugin
             }
 
             _auth = 1;
-            _runOnce = true;
         }
-
 
         public async Task<FullTrack> TrackSearch()
         {
@@ -78,22 +74,17 @@ namespace MusicBeePlugin
                 _albumID = track.Tracks.Items[_num].Album.Id;
                 _artistID = track.Tracks.Items[_num].Artists[0].Id;
                 _imageURL = track.Tracks.Items[_num].Album.Images[0].Url;
+                _trackMissing = 0;
                 return null;
             }
             catch (APIUnauthorizedException e)
             {
-                // handle unauthorized error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
                 return null;
             }
             catch (APIException e)
             {
-                // handle common error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
                 return null;
@@ -101,6 +92,7 @@ namespace MusicBeePlugin
             catch (System.ArgumentOutOfRangeException e)
             {
                 Console.WriteLine("Song not found!");
+                _trackMissing = 1;
                 return null;
             }
 
@@ -116,17 +108,11 @@ namespace MusicBeePlugin
             }
             catch (APIUnauthorizedException e)
             {
-                // handle unauthorized error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
             catch (APIException e)
             {
-                // handle common error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
@@ -147,17 +133,11 @@ namespace MusicBeePlugin
             }
             catch (APIUnauthorizedException e)
             {
-                // handle unauthorized error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
             catch (APIException e)
             {
-                // handle common error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
@@ -178,17 +158,11 @@ namespace MusicBeePlugin
             }
             catch (APIUnauthorizedException e)
             {
-                // handle unauthorized error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
             catch (APIException e)
             {
-                // handle common error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
@@ -211,17 +185,11 @@ namespace MusicBeePlugin
             }
             catch (APIUnauthorizedException e)
             {
-                // handle unauthorized error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
             catch (APIException e)
             {
-                // handle common error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
@@ -242,17 +210,11 @@ namespace MusicBeePlugin
             }
             catch (APIUnauthorizedException e)
             {
-                // handle unauthorized error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
             catch (APIException e)
             {
-                // handle common error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
@@ -273,17 +235,11 @@ namespace MusicBeePlugin
             }
             catch (APIUnauthorizedException e)
             {
-                // handle unauthorized error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
             catch (APIException e)
             {
-                // handle common error
-                // e.Response contains HTTP response
-                // e.Message contains Spotify error message
                 Console.WriteLine("Error Status: " + e.Response);
                 Console.WriteLine("Error Msg: " + e.Message);
             }
@@ -315,10 +271,6 @@ namespace MusicBeePlugin
 
         public Boolean CheckAlbum(string id)
         {
-            //API Code which doesn't currently work correctly.
-            //ListResponse<bool> albumsSaved = _spotify.CheckSavedAlbums(new List<String> { id });
-            //if (albumsSaved.List[0])
-
 
             var albums = new LibraryCheckAlbumsRequest(new List<String> { id });
 
@@ -333,28 +285,6 @@ namespace MusicBeePlugin
                 _albumLIB = false;
                 return false;
             }
-
-
-
-            //foreach (string line in File.ReadLines(_savedAlbumsPath))
-            //{
-            //    if (line.Contains(_albumID))
-            //    {
-            //        _albumLIB = true;
-            //        return true;
-            //    }
-            //    else
-            //    {
-            //        _albumLIB = false;
-            //    }
-            //}
-
-
-            //if (_albumLIB)
-            //{ return true; }
-            //else
-            //{ return false; }
-
 
 
         }
@@ -376,38 +306,6 @@ namespace MusicBeePlugin
                 return false;
             }
         }
-
-        // Workaround for Spotify API "Check-Users-Saved-Albums" Endpoint bug.
-        //public void GenerateAlbumList()
-        //{
-
-        //    int offset = 0;
-
-        //    using (System.IO.StreamWriter file = new System.IO.StreamWriter(_savedAlbumsPath))
-        //    {
-
-
-        //        while (offset != -1)
-        //        {
-
-        //            Paging<SavedAlbum> savedAlbums = _spotify.Library GetSavedAlbums(50, offset);
-        //            savedAlbums.Items.ForEach(album => file.WriteLine(album.Album.Id));
-
-        //            if (savedAlbums.Next == null)
-        //            {
-        //                offset += -1;
-        //                break;
-        //            }
-        //            else
-        //            {
-        //                offset += 50;
-        //            }
-
-        //        }
-        //        file.Close();
-        //    }
-
-        //}
 
 
     }

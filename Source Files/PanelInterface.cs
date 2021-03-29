@@ -16,16 +16,10 @@ namespace MusicBeePlugin
         private PluginInfo about = new PluginInfo();
         private Control panel;
         public int panelHeight;
-        private static string _searchTerm, _savedAlbumsPath;
+        private static string _searchTerm;
         Font largeBold, smallRegular, smallBold;
-        static System.Threading.Timer authTimer;
 
-        static void TickTimer(object state)
-        {
-            _auth = 0;
-        }
-
-            public PluginInfo Initialise(IntPtr apiInterfacePtr)
+        public PluginInfo Initialise(IntPtr apiInterfacePtr)
         {
             mbApiInterface = new MusicBeeApiInterface();
             mbApiInterface.Initialise(apiInterfacePtr);
@@ -43,14 +37,11 @@ namespace MusicBeePlugin
             about.ReceiveNotifications = (ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents);
             about.ConfigurationPanelHeight = 0;
 
-            _savedAlbumsPath = mbApiInterface.Setting_GetPersistentStoragePath() + @"spotify.txt";
-
-            SystemEvents.PowerModeChanged += OnPowerChange;
+            //SystemEvents.PowerModeChanged += OnPowerChange;
 
             return about;
         }
 
-       
         public int OnDockablePanelCreated(Control panel)
         {
             
@@ -163,7 +154,6 @@ namespace MusicBeePlugin
              
             }
             
-
         }
 
         public List<ToolStripItem> GetMenuItems()
@@ -178,23 +168,21 @@ namespace MusicBeePlugin
             return list;
         }
 
-        
+        //private void OnPowerChange(object s, PowerModeChangedEventArgs e)
+        //{
+        //    switch (e.Mode)
+        //    {
+        //        case PowerModes.Resume:
 
-        private void OnPowerChange(object s, PowerModeChangedEventArgs e)
-        {
-            switch (e.Mode)
-            {
-                case PowerModes.Resume:
+        //            _auth = 0;
 
-                    _auth = 0;
-
-                    break;
-            }
-        }
+        //            break;
+        //    }
+        //}
 
         public void reAuthSpotify(object sender, EventArgs e)
         {
-            SpotifyWebAuth(false);
+            SpotifyWebAuth();
             _trackMissing = 1;
             panel.Invalidate();
         }
@@ -207,7 +195,7 @@ namespace MusicBeePlugin
             if (_auth == 0 && me.Button == System.Windows.Forms.MouseButtons.Left)
             {
 
-                SpotifyWebAuth(false);
+                SpotifyWebAuth();
                 _trackMissing = 1;
 
                 panel.Invalidate();
@@ -280,63 +268,33 @@ namespace MusicBeePlugin
 
         }
 
-
         public async void ReceiveNotification(string sourceFileUrl, NotificationType type)
         {
             
             switch (type)
             {
 
-                //case NotificationType.PluginStartup:
-
-                //    panel.Invalidate();
-                //    //panel.Paint += DrawPanel;
-
-
-                //    break;
-
                 case NotificationType.TrackChanged:
-
-                    
-                    //if(_runOnce == true)
-                    //{
-                    //    authTimer = new System.Threading.Timer(
-                    //    new TimerCallback(TickTimer),
-                    //    null,
-                    //    3600000,
-                    //    3600000);
-
-                    //    GenerateAlbumList();
-                    //    _runOnce = false;
-                    //}
-                    
 
                     _trackMissing = 0;
                     _num = 0;
                     _searchTerm = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.TrackTitle) + " + " + mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artist);
                     
-
                     if (_auth == 1)
                     {
                         mbApiInterface.MB_RefreshPanels();
                         await TrackSearch();
                     }
                     
-                
                     panel.Invalidate();
-                    //panel.Paint += DrawPanel;
 
                     break;
 
             }
         }
 
-
-
         public bool Configure(IntPtr panelHandle)
         {
-
-
             return true;
         }
 
@@ -347,7 +305,7 @@ namespace MusicBeePlugin
 
         public void Close(PluginCloseReason reason)
         {
-            SystemEvents.PowerModeChanged -= OnPowerChange;
+            //SystemEvents.PowerModeChanged -= OnPowerChange;
         }
 
         public void Uninstall()
