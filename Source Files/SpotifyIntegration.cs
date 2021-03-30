@@ -2,8 +2,11 @@
 using SpotifyAPI.Web.Auth;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Xml.Serialization;
 
 namespace MusicBeePlugin
 {
@@ -14,51 +17,136 @@ namespace MusicBeePlugin
         private static SpotifyClient _spotify;
         private static int _auth, _num, _trackMissing = 0;
         private static bool _trackLIB, _albumLIB, _artistLIB = false;
-        private static string _title, _album, _artist, _trackID, _albumID, _artistID, _imageURL;
+        private static string _title, _album, _artist, _trackID, _albumID, _artistID, _imageURL, _path;
         private static string _clientID = "9076681768d94feda885a7b5eced926d";
+
+        public static void SerializeConfig(PKCETokenResponse data, string path)
+        {
+
+            using (StreamWriter file = new StreamWriter(path, false))
+            {
+                XmlSerializer controlsDefaultsSerializer = new XmlSerializer(typeof(PKCETokenResponse));
+                controlsDefaultsSerializer.Serialize(file, data);
+                file.Close();
+            }
+        }
+
+        public static PKCETokenResponse DeserializeConfig(string path)
+        {
+
+            try
+            {
+                StreamReader file = new StreamReader(path);
+                XmlSerializer xSerial = new XmlSerializer(typeof(PKCETokenResponse));
+                object oData = xSerial.Deserialize(file);
+                var thisConfig = (PKCETokenResponse)oData;
+                file.Close();
+                return thisConfig;
+            }
+            catch (Exception e)
+            {
+
+                Console.Write(e.Message);
+                return null;
+            }
+        }
+
+        //static void WriteOutput(PKCETokenResponse InitialToken)
+        //{
+        //    MessageBox.Show(
+        //        InitialToken.AccessToken + '\n' +
+        //        InitialToken.CreatedAt.ToString() + '\n' +
+        //        InitialToken.ExpiresIn + '\n' +
+        //        InitialToken.Scope + '\n' + 
+        //        InitialToken.TokenType + '\n' +
+        //        InitialToken.RefreshToken + '\n'
+        //    );
+        //}
 
 
         static async void SpotifyWebAuth()
         {
-            var (verifier, challenge) = PKCEUtil.GenerateCodes(120);
-
-            var loginRequest = new LoginRequest(
-                new Uri("http://localhost:5000/callback"), _clientID, LoginRequest.ResponseType.Code)
-            {
-                CodeChallengeMethod = "S256",
-                CodeChallenge = challenge,
-                Scope = new[] { Scopes.UserLibraryModify, Scopes.UserFollowModify, Scopes.UserFollowRead, Scopes.UserLibraryRead }
-            };
-            var uri = loginRequest.ToUri();
-
-            var server = new EmbedIOAuthServer(new Uri("http://localhost:5000/callback"), 5000);
-
-            server.PkceReceived += async (sender, response) =>
-            {
-                await server.Stop();
-
-                var initialResponse = await new OAuthClient().RequestToken(
-                  new PKCETokenRequest(_clientID, response.Code, server.BaseUri, verifier)
-                );
-
-                var authenticator = new PKCEAuthenticator(_clientID, initialResponse);
-
-                var config = SpotifyClientConfig.CreateDefault()
-                  .WithAuthenticator(authenticator);
-                _spotify = new SpotifyClient(config);
-            };
-            await server.Start();
-
             try
             {
-                BrowserUtil.Open(uri);
+                if(File.Exists(_path))
+                {
+                    var token_response = DeserializeConfig(_path);
+
+                    //WriteOutput(token_response);
+
+                    var authenticator = new PKCEAuthenticator(_clientID, token_response);
+
+                    var config = SpotifyClientConfig.CreateDefault()
+                      .WithAuthenticator(authenticator);
+                    _spotify = new SpotifyClient(config);
+
+                    SerializeConfig(token_response, _path);
+
+                    //WriteOutput(token_response);
+
+
+                    try
+                    {
+                        await _spotify.Search.Item(new SearchRequest(SearchRequest.Types.Track, "1ghvzmzpx2nnrbx7wtpMgo?si=cC3VIBCfRPauNBHFes6nsg"));
+                        _auth = 1;
+                    }
+                    catch(APIException)
+                    {
+                        Console.WriteLine("Spotify agent dead.");
+                        throw new System.NullReferenceException();
+                    }
+
+                }
+                else { throw new System.NullReferenceException(); }
             }
-            catch (Exception)
+            catch (System.NullReferenceException)
             {
-                Console.WriteLine("Unable to open URL, manually open: {0}", uri);
+                var (verifier, challenge) = PKCEUtil.GenerateCodes(120);
+
+                var loginRequest = new LoginRequest(
+                    new Uri("http://localhost:5000/callback"), _clientID, LoginRequest.ResponseType.Code)
+                {
+                    CodeChallengeMethod = "S256",
+                    CodeChallenge = challenge,
+                    Scope = new[] { Scopes.UserLibraryModify, Scopes.UserFollowModify, Scopes.UserFollowRead, Scopes.UserLibraryRead }
+                };
+                var uri = loginRequest.ToUri();
+
+                var server = new EmbedIOAuthServer(new Uri("http://localhost:5000/callback"), 5000);
+
+                server.PkceReceived += async (sender, response) =>
+                {
+                    await server.Stop();
+
+                    var initialResponse = await new OAuthClient().RequestToken(
+                      new PKCETokenRequest(_clientID, response.Code, server.BaseUri, verifier)
+                    );
+
+                    //WriteOutput(initialResponse);
+
+                    var authenticator = new PKCEAuthenticator(_clientID, initialResponse);
+
+                    var config = SpotifyClientConfig.CreateDefault()
+                      .WithAuthenticator(authenticator);
+                    _spotify = new SpotifyClient(config);
+
+                    //WriteOutput(initialResponse);
+                    SerializeConfig(initialResponse, _path);
+                };
+                await server.Start();
+
+                try
+                {
+                    BrowserUtil.Open(uri);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Unable to open URL, manually open: {0}", uri);
+                }
+
+                _auth = 1;
             }
 
-            _auth = 1;
         }
 
         public async Task<FullTrack> TrackSearch()

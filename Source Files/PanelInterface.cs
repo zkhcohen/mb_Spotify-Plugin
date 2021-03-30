@@ -37,6 +37,8 @@ namespace MusicBeePlugin
             about.ReceiveNotifications = (ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents);
             about.ConfigurationPanelHeight = 0;
 
+            _path = mbApiInterface.Setting_GetPersistentStoragePath() + @"token.txt";
+
             //SystemEvents.PowerModeChanged += OnPowerChange;
 
             return about;

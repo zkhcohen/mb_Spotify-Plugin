@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using SpotifyAPI.Web.Http;
 
 namespace SpotifyAPI.Web
@@ -40,6 +42,17 @@ namespace SpotifyAPI.Web
     /// <value></value>
     public PKCETokenResponse InitialToken { get; }
 
+    public static void SerializeConfig(PKCETokenResponse data)
+    {
+
+        using (StreamWriter file = new StreamWriter("C:\\Users\\zacha\\Desktop\\Local Files\\MusicBee\\AppData\\token.txt", false))
+        {
+            XmlSerializer controlsDefaultsSerializer = new XmlSerializer(typeof(PKCETokenResponse));
+            controlsDefaultsSerializer.Serialize(file, data);
+            file.Close();
+        }
+    }
+
     public async Task Apply(IRequest request, IAPIConnector apiConnector)
     {
       Ensure.ArgumentNotNull(request, nameof(request));
@@ -55,6 +68,8 @@ namespace SpotifyAPI.Web
         InitialToken.Scope = refreshedToken.Scope;
         InitialToken.TokenType = refreshedToken.TokenType;
         InitialToken.RefreshToken = refreshedToken.RefreshToken;
+
+        SerializeConfig(InitialToken);
 
         TokenRefreshed?.Invoke(this, InitialToken);
       }
