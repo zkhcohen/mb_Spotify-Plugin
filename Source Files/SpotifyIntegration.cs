@@ -74,7 +74,7 @@ namespace MusicBeePlugin
 
                     //WriteOutput(token_response);
 
-                    var authenticator = new PKCEAuthenticator(_clientID, token_response);
+                    var authenticator = new PKCEAuthenticator(_clientID, token_response, _path);
 
                     var config = SpotifyClientConfig.CreateDefault()
                       .WithAuthenticator(authenticator);
@@ -84,10 +84,10 @@ namespace MusicBeePlugin
 
                     //WriteOutput(token_response);
 
-
+                    // This appears to be the easiest way to check if the Spotify client works, but it's not great:
                     try
                     {
-                        await _spotify.Search.Item(new SearchRequest(SearchRequest.Types.Track, "1ghvzmzpx2nnrbx7wtpMgo?si=cC3VIBCfRPauNBHFes6nsg"));
+                        await _spotify.Search.Item(new SearchRequest(SearchRequest.Types.Track, "fasdofimasdofiasdnfaosnf"));
                         _auth = 1;
                     }
                     catch(APIException)
@@ -124,7 +124,7 @@ namespace MusicBeePlugin
 
                     //WriteOutput(initialResponse);
 
-                    var authenticator = new PKCEAuthenticator(_clientID, initialResponse);
+                    var authenticator = new PKCEAuthenticator(_clientID, initialResponse, _path);
 
                     var config = SpotifyClientConfig.CreateDefault()
                       .WithAuthenticator(authenticator);

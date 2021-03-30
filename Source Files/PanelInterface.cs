@@ -17,6 +17,7 @@ namespace MusicBeePlugin
         private Control panel;
         public int panelHeight;
         private static string _searchTerm;
+        private bool _runOnce = true;
         Font largeBold, smallRegular, smallBold;
 
         public PluginInfo Initialise(IntPtr apiInterfacePtr)
@@ -26,7 +27,7 @@ namespace MusicBeePlugin
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "mb_Spotify_Plugin";
             about.Description = "This plugin integrates Spotify with MusicBee.";
-            about.Author = "Zachary Cohen";
+            about.Author = "zkhcohen";
             about.TargetApplication = "Spotify Plugin";
             about.Type = PluginType.PanelView;
             about.VersionMajor = 2; 
@@ -95,6 +96,14 @@ namespace MusicBeePlugin
             var highlight = Color.FromArgb(2021216);
             e.Graphics.Clear(bg);
             panel.Cursor = Cursors.Hand;
+
+            if(_runOnce)
+            {
+                SpotifyWebAuth();
+                _trackMissing = 1;
+                panel.Invalidate();
+                _runOnce = false;
+            }
 
             // re-draws when file is found?
             if (_auth == 1 && _trackMissing != 1)

@@ -8,3 +8,11 @@ INSTALLATION:
 Just extract the contents of the "plugins" folder to your MusicBee Plugins directory. 
 
 Let me know if you encounter any bugs - "ZKHCOHEN" on the MusicBee Forums.
+
+
+KNOWN ISSUES:
+
+The Spotify API is (incorrectly) reporting the follow error in the MusicBee ErrorLog.dat file:
+
+System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. 
+As a result, the unobserved exception was rethrown by the finalizer thread. ---> SpotifyAPI.Web.APIException: invalid_grant

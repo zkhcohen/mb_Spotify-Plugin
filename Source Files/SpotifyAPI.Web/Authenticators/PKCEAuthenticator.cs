@@ -16,13 +16,14 @@ namespace SpotifyAPI.Web
     ///   Initiate a new instance. The token will be refreshed once it expires.
     ///   The initialToken will be updated with the new values on refresh!
     /// </summary>
-    public PKCEAuthenticator(string clientId, PKCETokenResponse initialToken)
+    public PKCEAuthenticator(string clientId, PKCETokenResponse initialToken, string path)
     {
       Ensure.ArgumentNotNull(clientId, nameof(clientId));
       Ensure.ArgumentNotNull(initialToken, nameof(initialToken));
 
       InitialToken = initialToken;
       ClientId = clientId;
+      Path = path;
     }
 
     /// <summary>
@@ -36,16 +37,18 @@ namespace SpotifyAPI.Web
     /// </summary>
     public string ClientId { get; }
 
+    public string Path { get; }
+
     /// <summary>
     ///   The inital token passed to the authenticator. Fields will be updated on refresh.
     /// </summary>
     /// <value></value>
     public PKCETokenResponse InitialToken { get; }
 
-    public static void SerializeConfig(PKCETokenResponse data)
+    public void SerializeConfig(PKCETokenResponse data)
     {
 
-        using (StreamWriter file = new StreamWriter("C:\\Users\\zacha\\Desktop\\Local Files\\MusicBee\\AppData\\token.txt", false))
+        using (StreamWriter file = new StreamWriter(Path, false))
         {
             XmlSerializer controlsDefaultsSerializer = new XmlSerializer(typeof(PKCETokenResponse));
             controlsDefaultsSerializer.Serialize(file, data);
