@@ -5,8 +5,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.Xml.Serialization;
+using System.Xml;
+using System.Security.Cryptography;
 
 namespace MusicBeePlugin
 {
@@ -20,22 +21,46 @@ namespace MusicBeePlugin
         private static string _title, _album, _artist, _trackID, _albumID, _artistID, _imageURL, _path;
         private static string _clientID = "9076681768d94feda885a7b5eced926d";
 
-        public static void SerializeConfig(PKCETokenResponse data, string path)
+        public void SerializeConfig(PKCETokenResponse data, string path, RSACryptoServiceProvider rsaKey)
         {
-
             using (StreamWriter file = new StreamWriter(path, false))
             {
                 XmlSerializer controlsDefaultsSerializer = new XmlSerializer(typeof(PKCETokenResponse));
                 controlsDefaultsSerializer.Serialize(file, data);
                 file.Close();
             }
+
+            try
+            {
+                // Encrypt
+                XmlDocument xmlDoc = new XmlDocument();
+                xmlDoc.PreserveWhitespace = true;
+                xmlDoc.Load(path);
+                Encrypt(xmlDoc, "AccessToken", "AccessToken", rsaKey, "rsaKey");
+                Encrypt(xmlDoc, "RefreshToken", "RefreshToken", _rsaKey, "rsaKey");
+                xmlDoc.Save(path);
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
         }
 
-        public static PKCETokenResponse DeserializeConfig(string path)
+        public PKCETokenResponse DeserializeConfig(string path, RSACryptoServiceProvider rsaKey)
         {
 
             try
             {
+                // Decrypt
+                XmlDocument xmlDoc = new XmlDocument();
+                xmlDoc.PreserveWhitespace = true;
+                xmlDoc.Load(path);
+                Decrypt(xmlDoc, rsaKey, "rsaKey");
+                xmlDoc.Save(path);
+
+                // Deserialize
                 StreamReader file = new StreamReader(path);
                 XmlSerializer xSerial = new XmlSerializer(typeof(PKCETokenResponse));
                 object oData = xSerial.Deserialize(file);
@@ -45,9 +70,18 @@ namespace MusicBeePlugin
             }
             catch (Exception e)
             {
-
                 Console.Write(e.Message);
                 return null;
+            }
+            finally
+            {
+                // Encrypt
+                XmlDocument xmlDoc = new XmlDocument();
+                xmlDoc.PreserveWhitespace = true;
+                xmlDoc.Load(path);
+                Encrypt(xmlDoc, "AccessToken", "AccessToken", rsaKey, "rsaKey");
+                Encrypt(xmlDoc, "RefreshToken", "RefreshToken", rsaKey, "rsaKey");
+                xmlDoc.Save(path);
             }
         }
 
@@ -64,13 +98,13 @@ namespace MusicBeePlugin
         //}
 
 
-        static async void SpotifyWebAuth()
+        async void SpotifyWebAuth()
         {
             try
             {
                 if(File.Exists(_path))
                 {
-                    var token_response = DeserializeConfig(_path);
+                    var token_response = DeserializeConfig(_path, _rsaKey);
 
                     //WriteOutput(token_response);
 
@@ -80,7 +114,7 @@ namespace MusicBeePlugin
                       .WithAuthenticator(authenticator);
                     _spotify = new SpotifyClient(config);
 
-                    SerializeConfig(token_response, _path);
+                    SerializeConfig(token_response, _path, _rsaKey);
 
                     //WriteOutput(token_response);
 
@@ -131,7 +165,7 @@ namespace MusicBeePlugin
                     _spotify = new SpotifyClient(config);
 
                     //WriteOutput(initialResponse);
-                    SerializeConfig(initialResponse, _path);
+                    SerializeConfig(initialResponse, _path, _rsaKey);
                 };
                 await server.Start();
 

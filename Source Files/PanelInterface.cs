@@ -3,9 +3,8 @@ using System.IO;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Net;
-using System.Threading;
 using System.Collections.Generic;
-using Microsoft.Win32;
+using System.Security.Cryptography;
 
 namespace MusicBeePlugin
 {
@@ -19,6 +18,10 @@ namespace MusicBeePlugin
         private static string _searchTerm;
         private bool _runOnce = true;
         Font largeBold, smallRegular, smallBold;
+        private RSACryptoServiceProvider _rsaKey;
+
+        // Create a new CspParameters object to specify a key container.
+        CspParameters _cspParams = new CspParameters();
 
         public PluginInfo Initialise(IntPtr apiInterfacePtr)
         {
@@ -30,15 +33,21 @@ namespace MusicBeePlugin
             about.Author = "zkhcohen";
             about.TargetApplication = "Spotify Plugin";
             about.Type = PluginType.PanelView;
-            about.VersionMajor = 2; 
+            about.VersionMajor = 3; 
             about.VersionMinor = 0;
-            about.Revision = 2;
+            about.Revision = 5;
             about.MinInterfaceVersion = MinInterfaceVersion;
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = (ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents);
             about.ConfigurationPanelHeight = 0;
 
-            _path = mbApiInterface.Setting_GetPersistentStoragePath() + @"token.txt";
+            _path = mbApiInterface.Setting_GetPersistentStoragePath() + "token.xml";
+
+            _cspParams.KeyContainerName = "SPOTIFY_XML_ENC_RSA_KEY";
+
+            // Create a new RSA key and save it in the container.  This key will encrypt
+            // a symmetric key, which will then be encrypted in the XML document.
+            _rsaKey = new RSACryptoServiceProvider(_cspParams);
 
             //SystemEvents.PowerModeChanged += OnPowerChange;
 
@@ -193,6 +202,7 @@ namespace MusicBeePlugin
 
         public void reAuthSpotify(object sender, EventArgs e)
         {
+            File.Delete(_path);
             SpotifyWebAuth();
             _trackMissing = 1;
             panel.Invalidate();
