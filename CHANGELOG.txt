@@ -1,4 +1,5 @@
 CHANGE LOG:
 
-Beta 2.0: Improved performance. Removed 500 album restriction. Added automatic prompt to re-authenticate if computer resumes from sleep.
-Beta 2.0.2: Fixed error log spam.
+Release 2.0: Improved performance. Removed 500 album restriction. Added automatic prompt to re-authenticate if computer resumes from sleep.
+Release 2.0.2: Fixed error log spam.
+Beta 3.1: Upgraded all API methods to 6.x.x spec. Implemented PKCE auth method with token persistence and automatic renewal. General speed improvements.

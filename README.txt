@@ -12,5 +12,7 @@ Let me know if you encounter any bugs - "ZKHCOHEN" on the MusicBee Forums.
 
 KNOWN ISSUES:
 
-Performance issues due to a workaround I implemented because of a bug in the Spotify API. Adding/removing albums is slow. The first track you play after enabling the add-in is slow to load.
-You have to re-authenticate hourly due to a limitation with the Spotify API. I plan to do this silently in the future.
+The Spotify API is (incorrectly) reporting the following error in the MusicBee ErrorLog.dat file:
+
+System.AggregateException: A Task's exception(s) were not observed either by Waiting on the Task or accessing its Exception property. 
+As a result, the unobserved exception was rethrown by the finalizer thread. ---> SpotifyAPI.Web.APIException: invalid_grant

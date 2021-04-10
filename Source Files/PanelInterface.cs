@@ -3,9 +3,8 @@ using System.IO;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Net;
-using System.Threading;
 using System.Collections.Generic;
-using Microsoft.Win32;
+using System.Security.Cryptography;
 
 namespace MusicBeePlugin
 {
@@ -16,41 +15,45 @@ namespace MusicBeePlugin
         private PluginInfo about = new PluginInfo();
         private Control panel;
         public int panelHeight;
-        private static string _searchTerm, _savedAlbumsPath;
+        private static string _searchTerm;
+        private bool _runOnce = true;
         Font largeBold, smallRegular, smallBold;
-        static System.Threading.Timer authTimer;
+        private RSACryptoServiceProvider _rsaKey;
 
-        static void TickTimer(object state)
-        {
-            _auth = 0;
-        }
+        // Create a new CspParameters object to specify a key container.
+        CspParameters _cspParams = new CspParameters();
 
-            public PluginInfo Initialise(IntPtr apiInterfacePtr)
+        public PluginInfo Initialise(IntPtr apiInterfacePtr)
         {
             mbApiInterface = new MusicBeeApiInterface();
             mbApiInterface.Initialise(apiInterfacePtr);
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "mb_Spotify_Plugin";
             about.Description = "This plugin integrates Spotify with MusicBee.";
-            about.Author = "Zachary Cohen";
+            about.Author = "zkhcohen";
             about.TargetApplication = "Spotify Plugin";
             about.Type = PluginType.PanelView;
-            about.VersionMajor = 2; 
+            about.VersionMajor = 3; 
             about.VersionMinor = 0;
-            about.Revision = 2;
+            about.Revision = 5;
             about.MinInterfaceVersion = MinInterfaceVersion;
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = (ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents);
             about.ConfigurationPanelHeight = 0;
 
-            _savedAlbumsPath = mbApiInterface.Setting_GetPersistentStoragePath() + @"spotify.txt";
+            _path = mbApiInterface.Setting_GetPersistentStoragePath() + "token.xml";
 
-            SystemEvents.PowerModeChanged += OnPowerChange;
+            _cspParams.KeyContainerName = "SPOTIFY_XML_ENC_RSA_KEY";
+
+            // Create a new RSA key and save it in the container.  This key will encrypt
+            // a symmetric key, which will then be encrypted in the XML document.
+            _rsaKey = new RSACryptoServiceProvider(_cspParams);
+
+            //SystemEvents.PowerModeChanged += OnPowerChange;
 
             return about;
         }
 
-       
         public int OnDockablePanelCreated(Control panel)
         {
             
@@ -103,6 +106,14 @@ namespace MusicBeePlugin
             e.Graphics.Clear(bg);
             panel.Cursor = Cursors.Hand;
 
+            if(_runOnce)
+            {
+                SpotifyWebAuth();
+                _trackMissing = 1;
+                panel.Invalidate();
+                _runOnce = false;
+            }
+
             // re-draws when file is found?
             if (_auth == 1 && _trackMissing != 1)
             {
@@ -119,35 +130,35 @@ namespace MusicBeePlugin
                 e.Graphics.DrawImage(image, new Point(10, 80));
                 webClient.Dispose();
 
-                
-               if (CheckTrack(_trackID))
-               {
-                   TextRenderer.DrawText(e.Graphics, "Track Saved in Library", smallBold, new Point(80, 85), text1);
-               }
-               else
-               {
-                   TextRenderer.DrawText(e.Graphics, "Track Not in Library", smallRegular, new Point(80, 85), text1);
-               }
 
-               if (CheckAlbum(_albumID))
-               {
-                   TextRenderer.DrawText(e.Graphics, "Album Saved in Library", smallBold, new Point(80, 105), text1);
-               }
-               else
-               {
-                   TextRenderer.DrawText(e.Graphics, "Album Not in Library", smallRegular, new Point(80, 105), text1);
-               }
+                if (CheckTrack(_trackID))
+                {
+                    TextRenderer.DrawText(e.Graphics, "Track Saved in Library", smallBold, new Point(80, 85), text1);
+                }
+                else
+                {
+                    TextRenderer.DrawText(e.Graphics, "Track Not in Library", smallRegular, new Point(80, 85), text1);
+                }
 
-               if (CheckArtist(_artistID))
-               {
-                   TextRenderer.DrawText(e.Graphics, "Artist Already Followed", smallBold, new Point(80, 125), text1);
-               }
-               else
-               {
-                   TextRenderer.DrawText(e.Graphics, "Artist Not Followed", smallRegular, new Point(80, 125), text1);
-               }
+                if (CheckAlbum(_albumID))
+                {
+                    TextRenderer.DrawText(e.Graphics, "Album Saved in Library", smallBold, new Point(80, 105), text1);
+                }
+                else
+                {
+                    TextRenderer.DrawText(e.Graphics, "Album Not in Library", smallRegular, new Point(80, 105), text1);
+                }
 
-                
+                if (CheckArtist(_artistID))
+                {
+                    TextRenderer.DrawText(e.Graphics, "Artist Already Followed", smallBold, new Point(80, 125), text1);
+                }
+                else
+                {
+                    TextRenderer.DrawText(e.Graphics, "Artist Not Followed", smallRegular, new Point(80, 125), text1);
+                }
+
+
             }
             else if (_auth == 1 && _trackMissing == 1)
             {
@@ -163,7 +174,6 @@ namespace MusicBeePlugin
              
             }
             
-
         }
 
         public List<ToolStripItem> GetMenuItems()
@@ -178,23 +188,22 @@ namespace MusicBeePlugin
             return list;
         }
 
-        
+        //private void OnPowerChange(object s, PowerModeChangedEventArgs e)
+        //{
+        //    switch (e.Mode)
+        //    {
+        //        case PowerModes.Resume:
 
-        private void OnPowerChange(object s, PowerModeChangedEventArgs e)
-        {
-            switch (e.Mode)
-            {
-                case PowerModes.Resume:
+        //            _auth = 0;
 
-                    _auth = 0;
-
-                    break;
-            }
-        }
+        //            break;
+        //    }
+        //}
 
         public void reAuthSpotify(object sender, EventArgs e)
         {
-            SpotifyWebAuth(false);
+            File.Delete(_path);
+            SpotifyWebAuth();
             _trackMissing = 1;
             panel.Invalidate();
         }
@@ -207,7 +216,7 @@ namespace MusicBeePlugin
             if (_auth == 0 && me.Button == System.Windows.Forms.MouseButtons.Left)
             {
 
-                SpotifyWebAuth(false);
+                SpotifyWebAuth();
                 _trackMissing = 1;
 
                 panel.Invalidate();
@@ -237,26 +246,24 @@ namespace MusicBeePlugin
                         panel.Invalidate();
                         //panel.Paint += DrawPanel;
                     }
-                    
+
                 }
                 else if (point.X > 80 && point.X < this.panel.Width && point.Y < 120 && point.Y > 110)
                 {
-                    
+
                     if (_albumLIB)
                     {
                         RemoveAlbum();
-                        GenerateAlbumList();
                         panel.Invalidate();
                         //panel.Paint += DrawPanel;
                     }
                     else
                     {
                         SaveAlbum();
-                        GenerateAlbumList();
                         panel.Invalidate();
                         //panel.Paint += DrawPanel;
                     }
-                    
+
                 }
                 else if (point.X > 80 && point.X < this.panel.Width && point.Y < 100 && point.Y > 90)
                 {
@@ -273,73 +280,42 @@ namespace MusicBeePlugin
                         panel.Invalidate();
                         //panel.Paint += DrawPanel;
                     }
-                    
+
                 }
-                
+
 
             }
             
 
         }
 
-
-        public void ReceiveNotification(string sourceFileUrl, NotificationType type)
+        public async void ReceiveNotification(string sourceFileUrl, NotificationType type)
         {
             
             switch (type)
             {
-                // Window stacking doesn't work with custom panel plugins.
-
-                //case NotificationType.PluginStartup:
-
-                //    panel.Invalidate();
-                //    //panel.Paint += DrawPanel;
-
-
-                //    break;
 
                 case NotificationType.TrackChanged:
-
-                    
-                    if(_runOnce == true)
-                    {
-                        authTimer = new System.Threading.Timer(
-                        new TimerCallback(TickTimer),
-                        null,
-                        3600000,
-                        3600000);
-
-                        GenerateAlbumList();
-                        _runOnce = false;
-                    }
-                    
 
                     _trackMissing = 0;
                     _num = 0;
                     _searchTerm = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.TrackTitle) + " + " + mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artist);
                     
-
                     if (_auth == 1)
                     {
                         mbApiInterface.MB_RefreshPanels();
-                        TrackSearch();
+                        await TrackSearch();
                     }
                     
-                
                     panel.Invalidate();
-                    //panel.Paint += DrawPanel;
 
                     break;
 
             }
         }
 
-
-
         public bool Configure(IntPtr panelHandle)
         {
-
-
             return true;
         }
 
@@ -350,7 +326,7 @@ namespace MusicBeePlugin
 
         public void Close(PluginCloseReason reason)
         {
-            SystemEvents.PowerModeChanged -= OnPowerChange;
+            //SystemEvents.PowerModeChanged -= OnPowerChange;
         }
 
         public void Uninstall()
